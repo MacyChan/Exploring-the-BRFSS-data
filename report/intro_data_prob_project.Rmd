@@ -1,0 +1,145 @@
+---
+title: "Exploring the BRFSS data"
+author: Macy Chan
+knit: (function(inputFile, encoding) { 
+      rmarkdown::render(inputFile,
+                        encoding=encoding, 
+                        output_file=file.path(dirname(inputFile), '../doc', 'BRFSS_analysis.html')) })
+output: 
+  html_document: 
+    fig_height: 4
+    highlight: pygments
+    theme: spacelab
+---
+
+## Setup
+
+### Load packages
+
+```{r load-packages, message = FALSE}
+library(ggplot2)
+library(dplyr)
+library(dvmisc)
+library(here)
+```
+
+### Load data
+```{r load-data, cache=TRUE}
+load(here("data", "brfss2013.RData"))
+```
+
+
+* * *
+
+## Part 1: Data
+
+The Behavioral Risk Factor Surveillance System (BRFSS) is a collaborative project between all of the states in the United States (US) and participating US territories and the Centers for Disease Control and Prevention (CDC). The BRFSS objective is to collect uniform, state-specific data on preventive health practices and risk behaviors that are linked to chronic diseases, injuries, and preventable infectious diseases that affect the adult population. 
+
+**BRFSS conducts both landline telephone- and cellular telephone-based surveys.** In conducting the BRFSS landline telephone survey, interviewers collect data from a **randomly selected** adult in a household. In conducting the cellular telephone version of the BRFSS questionnaire, interviewers collect data from an adult who participates by using a cellular telephone and resides in a private residence or college housing. **This data collection method implies generalizability on the scope of inference.** 
+
+
+
+* * *
+
+## Part 2: Research questions
+
+**Research question 1:**  
+**Does Tobacco Use and Alcohol Consumption have positive relation?**  
+Alcohol and tobacco seem to go together: Drinkers smoke and smokers drink. In addition, heavier drinkers tend to be heavier smokers. Use of alcohol and tobacco may be related in two ways.
+
+**Research question 2:**  
+**Does Tobacco Use and Alcohol Consumption vary among Genders?**  
+The definition of alcoholic are different between male and female. The habit of using of alcohol and tobacco may be different
+by gender.
+
+**Research question 3:**  
+**Does Tobacco Use and Alcohol Consumption lead to obesity?**  
+Recently, obesity has been reported to be a risk factor for hepatocellular carcinoma (HCC). Alcohol has been shown to be an important risk factor for (HCC). The role of tobacco as a risk factor for HCC is controversial. 
+
+* * *
+
+## Part 3: Exploratory data analysis
+
+**Research question 1:**  
+
+#### Does Tobacco Use and Alcohol Consumption have positive relation?  
+
+For interviews who had smoked at least 100 cigarettes, we look at the percentage of three smoking frequencies (Every day, Some days and Not at all) corresponding to different amounts of daily alcohol consumption.
+```{r smoke_alchol_all}
+smoke_alchol<- brfss2013 %>% 
+        select(sex, weight2, height3, smoke100, smoke.frequency = smokday2, stopsmk2, avedrnk2 ) %>%
+        filter(smoke100 == "Yes" & !is.na(smoke.frequency) & !is.na(avedrnk2)) %>% 
+        mutate(bin = cut_width(avedrnk2, width = 10, center = 5), weight2 = as.integer(as.character(weight2)))
+
+ggplot(smoke_alchol, aes( x = bin, fill = smoke.frequency)) +
+        geom_bar(position = "fill") +
+        xlab("Avg Alcoholic Drinks Per Day In Past 30")  
+
+with(smoke_alchol, tapply(avedrnk2,  smoke.frequency , mean))
+```
+
+Compare the percentage between daily alcohol consumption 0-10 and 70-80, the relative frequency bar plot shows that interviewers who do not smoke usually consume less alcohol, in contrast, for daily alcohol consumption 70-80, the percentage of non-smoke is
+dropped dramatically. The mean of every day smoker is the highest with 3.33 drinks a day, occasional drinkers comes next with slight more than 3 drinks per day, whereas non-smoker has the least drinking volume with approximately 2 drinks per day.
+
+Furthermore, researchers have found that having more than three drinks a day for women and four or more per day for men are considered alcoholic at risk. Either you have 10 drinks a day or 60 drinks a day, you can be considered as High-Functioning Alcoholic. Therefore, we focus on daily alcohol consumption 0-10 in order to find out the relationship between Tobacco Use and Alcohol Consumption.  
+
+```{r smoke_alchol_10}                        
+smoke_alchol_10<- brfss2013 %>% 
+        select(sex, weight2, height3, smoke100, smoke100, smoke.frequency = smokday2, stopsmk2, avedrnk2 ) %>%
+        filter(smoke100 == "Yes" & !is.na(smoke.frequency) & !is.na(avedrnk2) & avedrnk2 <= 10) 
+
+ggplot(smoke_alchol_10, aes( x = as.factor(avedrnk2), fill = smoke.frequency)) +
+  geom_bar(position = "fill") +
+  xlab("Avg Alcoholic Drinks Per Day In Past 30 (0-10 drinks per day)")  
+
+
+```
+
+The bar chart shows that the percentage of non-smoker decreases when the average alcoholic drinks per day increases. ***It suggests that use of alcohol and tobacco may a positive relationship, where heavier drinkers tend to be heavier smokers.***
+
+
+**Research question 2:**
+
+#### Does Tobacco Use and Alcohol Consumption vary among Genders?
+
+Similar to question 1, we look at the alcohol consumption 0-10. In addition, we separated the data to Male and Female.  
+
+```{r smoke_alchol_sex_10}
+
+ggplot(smoke_alchol_10, aes( x = as.factor(avedrnk2), fill = smoke.frequency)) +
+  geom_bar(position = "fill") +
+  facet_wrap(~sex) +
+  xlab("Avg Alcoholic Drinks Per Day In Past 30 (0-10 drinks per day)")  
+
+```
+
+The bar chart shows that the percentage distribution are similar for two genders. ***To conclude, the effect on Tobacco Use and Alcohol Consumption does not have significant different between male and female.***
+
+
+**Research question 3:**
+
+#### Does Tobacco Use and Alcohol Consumption lead to obesity? 
+
+BMI can be used to indicate if you are overweight, obese, underweight or normal. A healthy BMI score is between 20 and 25. A score below 20 indicates that you may be underweight; a value above 25 indicates that you may be overweight. 
+
+***BMI = (Weight in Pounds / (Height in inches x Height in inches)) x 703***  
+
+Considering the smoke frequency and daily alcohol consumption, we can plot the relationship with respect to the corresponding BMI of each interviews.
+```{r smoke_alchol_bmi}
+
+smoke_alchol_bmi<- smoke_alchol %>%
+                filter(!is.na(weight2) & !is.na(height3) & weight2 <= 1000) %>%
+                mutate( height.inches = as.integer(substring(height3, 1,1))*12 + as.integer(substring(height3, 2,3))) %>%
+                mutate( bmi = weight2 / (height.inches * height.inches) * 703) %>%
+                mutate( bmi.lv = bmi4(bmi, labels = TRUE))
+
+ggplot(smoke_alchol_bmi, aes( x = avedrnk2, y = bmi)) +
+  geom_point(alpha = 1/5, aes(color = bmi.lv)) +
+  facet_wrap(~smoke.frequency, ncol = 3) +
+  geom_smooth(formula = y ~ x, method=lm) +
+  xlab("Avg Alcoholic Drinks Per Day In Past 30")  
+
+
+```
+
+**The scatter plot shows that alcoholic drinks may relate to obesity but smoking.** The more alcohol one consumes, the higher BMI, this trend is more obvious among non-smoker. However, smoking does not seem to relate to obesity as much as alcohol. The side to sides plots are similar to each other.
