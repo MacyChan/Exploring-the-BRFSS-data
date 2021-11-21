@@ -1,7 +1,7 @@
 # Exploring-the-BRFSS-data
 
 ## Report URL
-[github](https://macychan.github.io/exploring-the-BRFSS-data/)
+[github](https://macychan.github.io/exploring-the-BRFSS-data/)  
 [rpubs](https://rpubs.com/MacyChan/coursera-du-Intro2ProbNDataWRWeek5-proj)
 
 ## Summary
